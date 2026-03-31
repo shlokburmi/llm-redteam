@@ -67,7 +67,10 @@ def main():
         except Exception as e:
             ai_text = f"Connection Error: {str(e)}"
 
-        verdict_data = score_response(p["payload"], ai_text, p["category"])
+        if "HTTP Error" in ai_text or "Connection Error" in ai_text:
+            verdict_data = {"verdict": "ERROR", "severity": "N/A", "reason": f"Target app crashed: {ai_text}"}
+        else:
+            verdict_data = score_response(p["payload"], ai_text, p["category"])
         
         results.append({
             "category": p["category"],
@@ -77,8 +80,8 @@ def main():
             "severity": verdict_data.get("severity"),
             "reason": verdict_data.get("reason")
         })
-        print("    [Waiting 8s to respect free tier rate limit...]")
-        time.sleep(8)
+        print("    [Waiting 15s to be extremely safe with rate limits...]")
+        time.sleep(15)
 
     json_path = os.path.join(OUTPUT_DIR, "results.json")
     with open(json_path, "w") as f:
