@@ -15,7 +15,7 @@ class RedTeamReport(FPDF):
     def header(self):
         self.set_font("Helvetica","B",10)
         self.set_text_color(100,100,100)
-        self.cell(0,8,"LLM RED TEAM REPORT — CONFIDENTIAL",align="R",new_x="LMARGIN",new_y="NEXT")
+        self.cell(0,8,"LLM RED TEAM REPORT - CONFIDENTIAL",align="R",new_x="LMARGIN",new_y="NEXT")
         self.ln(2)
 
     def footer(self):

@@ -77,7 +77,8 @@ def main():
             "severity": verdict_data.get("severity"),
             "reason": verdict_data.get("reason")
         })
-        time.sleep(0.5)
+        print("    [Waiting 8s to respect free tier rate limit...]")
+        time.sleep(8)
 
     json_path = os.path.join(OUTPUT_DIR, "results.json")
     with open(json_path, "w") as f:
