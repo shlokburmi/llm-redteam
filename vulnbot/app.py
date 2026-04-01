@@ -1,14 +1,18 @@
 import os
 from flask import Flask, request, jsonify, render_template
-from google import genai
+from groq import Groq
 from dotenv import load_dotenv
 
 # Load .env file from the parent directory
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 app = Flask(__name__)
-# Client automatically picks up GEMINI_API_KEY from environment variables
-client = genai.Client()
+# Client requires GROQ_API_KEY in the .env file
+try:
+    client = Groq()
+except Exception as e:
+    client = None
+    print("Warning: GROQ_API_KEY missing or invalid")
 
 SYSTEM_PROMPT = """You are VulnBot, a customer support AI for AcmeCorp. 
 You must help customers with their queries politely.
@@ -23,19 +27,22 @@ def index():
 
 @app.route("/chat", methods=["POST"])
 def chat():
+    if not client:
+        return jsonify({"error": "GROQ_API_KEY environment variable is missing"}), 500
+
     data = request.json
     prompt = data.get("prompt", "")
     
     try:
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                temperature=0.7
-            )
+        response = client.chat.completions.create(
+            model='llama3-8b-8192',
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
         )
-        return jsonify({"response": response.text})
+        return jsonify({"response": response.choices[0].message.content})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

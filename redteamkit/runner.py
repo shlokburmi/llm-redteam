@@ -63,7 +63,10 @@ def main():
             if resp.status_code == 200:
                 ai_text = resp.json().get("response", "")
             else:
-                ai_text = f"HTTP Error {resp.status_code}"
+                try:
+                    ai_text = f"HTTP Error {resp.status_code}: {resp.json().get('error', '')}"
+                except:
+                    ai_text = f"HTTP Error {resp.status_code}"
         except Exception as e:
             ai_text = f"Connection Error: {str(e)}"
 
