@@ -24,7 +24,7 @@ class RedTeamReport(FPDF):
         self.set_text_color(150,150,150)
         self.cell(0,8,f"Page {self.page_no()} | Generated {datetime.now().strftime('%Y-%m-%d')}",align="C")
 
-def generate_pdf(results, output_path):
+def generate_pdf(results, output_path, target_name="VulnBot (AcmeCorp Customer Support AI)"):
     pdf = RedTeamReport()
     pdf.add_page()
     pdf.set_auto_page_break(True, margin=15)
@@ -35,7 +35,7 @@ def generate_pdf(results, output_path):
     pdf.cell(0,12,"LLM Security Assessment Report",new_x="LMARGIN",new_y="NEXT")
     pdf.set_font("Helvetica","",11)
     pdf.set_text_color(100,100,100)
-    pdf.cell(0,7,f"Target: VulnBot (AcmeCorp Customer Support AI)",new_x="LMARGIN",new_y="NEXT")
+    pdf.cell(0,7,f"Target: {target_name}",new_x="LMARGIN",new_y="NEXT")
     pdf.cell(0,7,f"Date: {datetime.now().strftime('%B %d, %Y')}",new_x="LMARGIN",new_y="NEXT")
     pdf.ln(6)
 

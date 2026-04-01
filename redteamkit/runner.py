@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
-TARGET_URL = "http://localhost:5000/chat"
+TARGETS = [
+    {"name": "VulnBot V1 (Insecure)", "url": "http://localhost:5000/chat", "pdf": "report_vulnerable.pdf", "json": "results_vulnerable.json"},
+    {"name": "SecureBot V2 (Hardened)", "url": "http://localhost:5001/chat", "pdf": "report_hardened.pdf", "json": "results_hardened.json"}
+]
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results")
 
 PAYLOADS = [
@@ -54,11 +57,11 @@ PAYLOADS = [
 def _is_error(text: str) -> bool:
     return "HTTP Error" in text or "Connection Error" in text
 
-def _call_target(payload: str, max_retries: int = 3) -> str:
+def _call_target(payload: str, target_url: str, max_retries: int = 3) -> str:
     """POST a single payload to VulnBot with retry on Groq 429."""
     for attempt in range(1, max_retries + 1):
         try:
-            resp = requests.post(TARGET_URL, json={"prompt": payload}, timeout=30)
+            resp = requests.post(target_url, json={"prompt": payload}, timeout=30)
             if resp.status_code == 200:
                 return resp.json().get("response", "")
             # ── surface the actual error text ─────────────────────────────────
@@ -100,12 +103,12 @@ def _call_target(payload: str, max_retries: int = 3) -> str:
 
 # ── pre-flight check ───────────────────────────────────────────────────────────
 
-def _preflight_check():
-    print("[*] Pre-flight: pinging VulnBot at", TARGET_URL)
+def _preflight_check(target_url: str):
+    print("[*] Pre-flight: pinging target at", target_url)
     try:
-        r = requests.post(TARGET_URL, json={"prompt": "hello"}, timeout=10)
+        r = requests.post(target_url, json={"prompt": "hello"}, timeout=10)
         if r.status_code == 200:
-            print("[OK] VulnBot is responding correctly.\n")
+            print("[OK] Target is responding correctly.\n")
             return
         body = ""
         try:
@@ -131,43 +134,48 @@ def _preflight_check():
 # ── main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    print("[*] Starting LLM Red Team Assessment...")
-    _preflight_check()
-    results = []
+    print("[*] Starting Dual LLM Red Team Assessment...")
 
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
 
-    for i, p in enumerate(PAYLOADS):
-        print(f"[-] Sending payload {i+1}/{len(PAYLOADS)}: {p['payload'][:50]}...")
-        ai_text = _call_target(p["payload"])
+    for target in TARGETS:
+        print(f"\n===========================================================")
+        print(f"[*] Attacking Target: {target['name']}")
+        print(f"===========================================================\n")
+        
+        _preflight_check(target["url"])
+        results = []
 
-        if _is_error(ai_text):
-            verdict_data = {"verdict": "ERROR", "severity": "N/A", "reason": f"Target app error: {ai_text[:200]}"}
-        else:
-            verdict_data = score_response(p["payload"], ai_text, p["category"])
+        for i, p in enumerate(PAYLOADS):
+            print(f"[-] Sending payload {i+1}/{len(PAYLOADS)}: {p['payload'][:50]}...")
+            ai_text = _call_target(p["payload"], target["url"])
 
-        results.append({
-            "category":  p["category"],
-            "payload":   p["payload"],
-            "response":  ai_text,
-            "verdict":   verdict_data.get("verdict"),
-            "severity":  verdict_data.get("severity"),
-            "reason":    verdict_data.get("reason")
-        })
-        print(f"    → verdict: {verdict_data.get('verdict')} | severity: {verdict_data.get('severity')}")
+            if _is_error(ai_text):
+                verdict_data = {"verdict": "ERROR", "severity": "N/A", "reason": f"Target app error: {ai_text[:200]}"}
+            else:
+                verdict_data = score_response(p["payload"], ai_text, p["category"])
 
-        # Groq free tier: ~30 req/min → ~2s between calls is fine; use 3s to be safe
-        if i < len(PAYLOADS) - 1:
-            time.sleep(3)
+            results.append({
+                "category":  p["category"],
+                "payload":   p["payload"],
+                "response":  ai_text,
+                "verdict":   verdict_data.get("verdict"),
+                "severity":  verdict_data.get("severity"),
+                "reason":    verdict_data.get("reason")
+            })
+            print(f"    → verdict: {verdict_data.get('verdict')} | severity: {verdict_data.get('severity')}")
 
-    json_path = os.path.join(OUTPUT_DIR, "results.json")
-    with open(json_path, "w") as f:
-        json.dump(results, f, indent=2)
-    print(f"\n[+] Saved raw results to {json_path}")
+            if i < len(PAYLOADS) - 1:
+                time.sleep(3)
 
-    pdf_path = os.path.join(OUTPUT_DIR, "report.pdf")
-    generate_pdf(results, pdf_path)
+        json_path = os.path.join(OUTPUT_DIR, target["json"])
+        with open(json_path, "w") as f:
+            json.dump(results, f, indent=2)
+        print(f"\n[+] Saved raw results to {json_path}")
+
+        pdf_path = os.path.join(OUTPUT_DIR, target["pdf"])
+        generate_pdf(results, pdf_path, target_name=target["name"])
 
 if __name__ == "__main__":
     main()
