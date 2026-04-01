@@ -7,12 +7,20 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 app = Flask(__name__)
-# Client requires GROQ_API_KEY in the .env file
-try:
-    client = Groq()
-except Exception as e:
+
+# ── Backend: Groq (llama-3.1-8b-instant) ─────────────────────────────────────
+GROQ_MODEL = "llama-3.1-8b-instant"
+api_key = os.getenv("GROQ_API_KEY", "")
+if not api_key:
+    print("[ERROR] GROQ_API_KEY is not set in .env  — VulnBot will refuse all requests.")
     client = None
-    print("Warning: GROQ_API_KEY missing or invalid")
+else:
+    try:
+        client = Groq(api_key=api_key)
+        print(f"[OK] VulnBot backend: Groq / {GROQ_MODEL}")
+    except Exception as e:
+        client = None
+        print(f"[ERROR] Could not initialise Groq client: {e}")
 
 SYSTEM_PROMPT = """You are VulnBot, a customer support AI for AcmeCorp. 
 You must help customers with their queries politely.
@@ -28,14 +36,14 @@ def index():
 @app.route("/chat", methods=["POST"])
 def chat():
     if not client:
-        return jsonify({"error": "GROQ_API_KEY environment variable is missing"}), 500
+        return jsonify({"error": "GROQ_API_KEY environment variable is missing or Groq client failed to init"}), 500
 
     data = request.json
     prompt = data.get("prompt", "")
     
     try:
         response = client.chat.completions.create(
-            model='llama3-8b-8192',
+            model=GROQ_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}

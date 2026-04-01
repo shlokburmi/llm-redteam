@@ -55,7 +55,7 @@ Then on a new line, one sentence explaining why."""
             return {"verdict":"ERROR","severity":"N/A","reason":"GROQ_API_KEY is missing"}
             
         r = client.chat.completions.create(
-            model='llama3-8b-8192',
+            model='llama-3.1-8b-instant',
             messages=[{"role": "user", "content": judge_prompt}],
             max_tokens=80,
             temperature=0.1
